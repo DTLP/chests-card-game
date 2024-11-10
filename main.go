@@ -155,6 +155,29 @@ func moveCards(from *[][]string, to *[][]string, rank string) {
 	*to = append(*to, cardsToMove...)
 }
 
+// checkForCompleteSet checks if a player has collected all 4 cards of a rank
+func checkForCompleteSet(player *[][]string, rank string) bool {
+	count := countCardsOfRank(*player, rank)
+	if count == 4 {
+		// Remove all 4 cards of the rank from the player's hand
+		var remainingCards [][]string
+		for _, card := range *player {
+			if ExtractRank(card[0]) != rank {
+				remainingCards = append(remainingCards, card)
+			}
+		}
+		*player = remainingCards
+		return true
+	}
+	return false
+}
+
+// isGameOver checks if the sum of all players' scores equals 13, indicating the game is over.
+func isGameOver(player1Score, player2Score, player3Score, player4Score int) bool {
+	totalScore := player1Score + player2Score + player3Score + player4Score
+	return totalScore == 13
+}
+
 // main game loop
 func main() {
 	// Generate and shuffle the deck
@@ -163,8 +186,17 @@ func main() {
 	// Distribute cards to players
 	player1, player2, player3, player4 := distributeCards(deck)
 
+	// Player scores
+	player1Score, player2Score, player3Score, player4Score := 0, 0, 0, 0
+
 	// Game loop for player1 to interact with other players
 	for {
+		fmt.Println("Score:")
+		fmt.Printf("Player 1: %v\n", player1Score)
+		fmt.Printf("Player 2: %v\n", player2Score)
+		fmt.Printf("Player 3: %v\n", player3Score)
+		fmt.Printf("Player 4: %v\n", player4Score)
+
 		// Print each player's hand after every update
 		printHand("Player 1", player1) // Human player
 		printHand("Player 2", player2) // AI bot 1
@@ -173,18 +205,18 @@ func main() {
 
 		// Ask player1 which AI player they want to talk to
 		var playerChoice string
-		fmt.Print("Which player do you want to talk to? (player2, player3, player4): ")
+		fmt.Print("Which player do you want to talk to? (2, 3 or 4): ")
 		fmt.Scanln(&playerChoice)
 		playerChoice = strings.ToLower(playerChoice)
 
 		// Choose the correct player hand based on playerChoice
 		var selectedPlayer *[][]string
 		switch playerChoice {
-		case "player2":
+		case "2":
 			selectedPlayer = &player2
-		case "player3":
+		case "3":
 			selectedPlayer = &player3
-		case "player4":
+		case "4":
 			selectedPlayer = &player4
 		default:
 			fmt.Println("Invalid player choice. Please try again.")
@@ -210,16 +242,35 @@ func main() {
 			fmt.Printf("Correct! Player 1 takes all %d cards of rank %s from %s.\n", actualCount, rankChoice, playerChoice)
 			// Move the cards to player 1's hand
 			moveCards(selectedPlayer, &player1, rankChoice)
+
+			// Check if player 1 collected all 4 cards of the rank
+			if checkForCompleteSet(&player1, rankChoice) {
+				player1Score++
+				fmt.Println("Player 1 has collected all 4 cards of rank " + rankChoice + " and scored 1 point!")
+			}
 		} else {
 			fmt.Printf("Wrong! %s has %d cards of rank %s, not %d.\n", playerChoice, actualCount, rankChoice, guess)
 		}
 
-		// Ask if player 1 wants to continue
-		var continueGame string
-		fmt.Print("Do you want to continue? (yes/no): ")
-		fmt.Scanln(&continueGame)
-		if strings.ToLower(continueGame) != "yes" {
+		// Check if the game is over
+		if isGameOver(player1Score, player2Score, player3Score, player4Score) {
 			break
 		}
+
+		// // Ask if player 1 wants to continue
+		// var continueGame string
+		// fmt.Print("Do you want to continue? (yes/no): ")
+		// fmt.Scanln(&continueGame)
+		// if strings.ToLower(continueGame) != "yes" {
+		// 	break
+		// }
 	}
+
+	// Display final score
+	fmt.Println("===================================")
+	fmt.Println("Final Scores:")
+	fmt.Printf("Player 1: %d\n", player1Score)
+	fmt.Printf("Player 2: %d\n", player2Score)
+	fmt.Printf("Player 3: %d\n", player3Score)
+	fmt.Printf("Player 4: %d\n", player4Score)
 }
