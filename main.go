@@ -7,7 +7,6 @@ import (
 )
 
 const (
-	reset   = "\033[0m"  // Reset color
 	whiteBg = "\033[47m" // White background
 	blackFg = "\033[30m" // Black foreground (text)
 	redFg   = "\033[31m" // Red foreground (text)
@@ -42,7 +41,7 @@ func main() {
 		// Players taking turns
 		for i := range p.player {
 			currentPlayer := &p.player[i]
-			fmt.Println(currentPlayer.id)
+			fmt.Printf("Game Master: Player %d's turn\n", currentPlayer.id)
 
 			var selectedPlayer *player
 			var rankChoice string
@@ -52,17 +51,12 @@ func main() {
 			switch currentPlayer.id {
 			case 1:
 				// Player 1's turn - human player
-				fmt.Println("Score:")
-				fmt.Printf("Player 1: %v\n", p.player[0].score)
-				fmt.Printf("Player 2: %v\n", p.player[1].score)
-				fmt.Printf("Player 3: %v\n", p.player[2].score)
-				fmt.Printf("Player 4: %v\n", p.player[3].score)
 
 				// Print each player's hand after every update
-				printHand("Player 1", p.player[0].hand) // Human player
-				printHand("Player 2", p.player[1].hand) // AI bot 1
-				printHand("Player 3", p.player[2].hand) // AI bot 2
-				printHand("Player 4", p.player[3].hand) // AI bot 3
+				printHand("Your hand", p.player[0].hand)       // Human player
+				printHand("Player 2's hand", p.player[1].hand) // AI bot 1
+				printHand("Player 3's hand", p.player[2].hand) // AI bot 2
+				printHand("Player 4's hand", p.player[3].hand) // AI bot 3
 
 				var playerChoice int
 				fmt.Print("Which player do you want to talk to? (2, 3 or 4): ")
@@ -75,7 +69,6 @@ func main() {
 
 				// convert player id to index
 				selectedPlayer = &p.player[playerChoice-1]
-				fmt.Println("[DEBUG] playerChoice:", playerChoice, "selectedPlayerID:", selectedPlayer.id)
 
 				fmt.Print("Enter the card rank you want to ask about (A, 2, 3, ..., K): ")
 				fmt.Scanln(&rankChoice)
@@ -95,27 +88,29 @@ func main() {
 				guess = rand.Intn(4) + 1 // Guess between 1 and 4
 			}
 
-			fmt.Println("[DEBUG] selectedPlayer:", selectedPlayer.id)
-			fmt.Println("[DEBUG] selectedRank:", rankChoice)
-			fmt.Println("[DEBUG] selectedCount:", guess)
-			printHand("[DEBUG] selectedPlayer hand", selectedPlayer.hand) // AI bot 2
-
 			actualCount := countCardsOfRank(selectedPlayer.hand, rankChoice)
+			fmt.Printf("   Player %d: Player %d, do you have any cards of rank %s?\n", currentPlayer.id, selectedPlayer.id, rankChoice)
 
-			fmt.Println("[DEBUG] actualCount:", actualCount)
+			if actualCount == 0 {
+				fmt.Printf("   Player %d: No\n", selectedPlayer.id)
+				continue
+			}
+			fmt.Printf("   Player %d: Yes\n", selectedPlayer.id)
 
-			if guess == actualCount {
-				fmt.Printf("Correct! Player %d takes all %d cards of rank %s from Player %d.\n", currentPlayer.id, actualCount, rankChoice, selectedPlayer.id)
-				moveCards(&selectedPlayer.hand, &currentPlayer.hand, rankChoice)
-				fmt.Println("[DEBUG] currentPlayer.id:", currentPlayer.id)
-				printHand("[DEBUG] player 1 hand", p.player[0].hand)
+			fmt.Printf("   Player %d: Player %d, do you have %d of these cards\n", currentPlayer.id, selectedPlayer.id, guess)
+			if guess != actualCount {
+				fmt.Printf("   Player %d: No\n", selectedPlayer.id)
+				continue
+			}
 
-				if checkForCompleteSet(&currentPlayer.hand, rankChoice) {
-					currentPlayer.score++
-					fmt.Printf("Player %d has collected all 4 cards of rank %s and scored 1 point!", currentPlayer.id, rankChoice)
-				}
-			} else {
-				fmt.Printf("Wrong! Player %d has %d cards of rank %s, not %d.\n", selectedPlayer.id, actualCount, rankChoice, guess)
+			fmt.Printf("   Player %d: Yes\n", selectedPlayer.id)
+
+			fmt.Printf("Game Master: Player %d takes %d cards of rank %s from Player %d.\n", currentPlayer.id, actualCount, rankChoice, selectedPlayer.id)
+			moveCards(&selectedPlayer.hand, &currentPlayer.hand, rankChoice)
+
+			if checkForCompleteSet(&currentPlayer.hand, rankChoice) {
+				currentPlayer.score++
+				fmt.Printf("Game Master: Player %d has collected all 4 cards of rank %s and scored 1 point!\n", currentPlayer.id, rankChoice)
 			}
 		}
 
