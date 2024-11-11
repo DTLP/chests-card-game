@@ -7,10 +7,43 @@ import (
 )
 
 const (
-	whiteBg = "\033[47m" // White background
-	blackFg = "\033[30m" // Black foreground (text)
-	redFg   = "\033[31m" // Red foreground (text)
+	logMessageLimit = 30
 )
+
+// clearScreen clears the terminal screen.
+func clearScreen() {
+	fmt.Print("\033[H\033[2J") // ANSI escape code to clear screen and move cursor to top
+}
+
+func appendMessageLog(log *[]string, message string) []string {
+	if len(*log) >= logMessageLimit {
+		*log = (*log)[1:]
+	}
+
+	*log = append(*log, message)
+
+	return *log
+}
+
+// printLayout prints the updated game layout after each turn.
+func printLayout(p *players, messageLog []string) {
+	clearScreen()
+
+	// Print score board (top)
+	fmt.Println("Score board")
+	fmt.Printf("Player 1: %d\n", p.player[0].score)
+	fmt.Printf("Player 2: %d\n", p.player[1].score)
+	fmt.Printf("Player 3: %d\n", p.player[2].score)
+	fmt.Printf("Player 4: %d\n", p.player[3].score)
+	fmt.Println(strings.Repeat("=", 115))
+
+	// Print chat messages (middle)
+	for _, message := range messageLog {
+		fmt.Println(message)
+	}
+
+	fmt.Println(strings.Repeat("=", 115))
+}
 
 // isGameOver checks if the sum of all players' scores equals 13, indicating the game is over.
 func isGameOver(player1Score, player2Score, player3Score, player4Score int) bool {
@@ -22,6 +55,9 @@ func isGameOver(player1Score, player2Score, player3Score, player4Score int) bool
 func main() {
 	// Generate and shuffle the deck
 	deck := generateDeck()
+
+	// var messageLog []string
+	messageLog := make([]string, logMessageLimit)
 
 	// Distribute cards to players
 	hand1, hand2, hand3, hand4 := distributeCards(deck)
@@ -40,23 +76,23 @@ func main() {
 	for {
 		// Players taking turns
 		for i := range p.player {
+
 			currentPlayer := &p.player[i]
-			fmt.Printf("Game Master: Player %d's turn\n", currentPlayer.id)
+			appendMessageLog(&messageLog, fmt.Sprintf("Game Master: Player %d's turn", currentPlayer.id))
+
+			printLayout(&p, messageLog)
 
 			var selectedPlayer *player
-			var rankChoice string
-			var guess int
+			var rankGuess string
+			var countGuess int
 
 			// Handle turn logic based on player
 			switch currentPlayer.id {
 			case 1:
 				// Player 1's turn - human player
 
-				// Print each player's hand after every update
-				printHand("Your hand", p.player[0].hand)       // Human player
-				printHand("Player 2's hand", p.player[1].hand) // AI bot 1
-				printHand("Player 3's hand", p.player[2].hand) // AI bot 2
-				printHand("Player 4's hand", p.player[3].hand) // AI bot 3
+				// Print each player's hand
+				printHand("Your hand", p.player[0].hand) // Human player
 
 				var playerChoice int
 				fmt.Print("Which player do you want to talk to? (2, 3 or 4): ")
@@ -71,46 +107,46 @@ func main() {
 				selectedPlayer = &p.player[playerChoice-1]
 
 				fmt.Print("Enter the card rank you want to ask about (A, 2, 3, ..., K): ")
-				fmt.Scanln(&rankChoice)
-				rankChoice = strings.ToUpper(rankChoice)
+				fmt.Scanln(&rankGuess)
+				rankGuess = strings.ToUpper(rankGuess)
 
-				fmt.Printf("How many %s cards does Player %d have? ", rankChoice, selectedPlayer.id)
-				fmt.Scanln(&guess)
+				fmt.Printf("How many %s cards does Player %d have? ", rankGuess, selectedPlayer.id)
+				fmt.Scanln(&countGuess)
 			default:
 				// Bot randomly chooses which player to talk to
 				selectedPlayerIndex := selectAnotherRandomPlayer(currentPlayer.id)
 				selectedPlayer = &p.player[selectedPlayerIndex]
 
 				// Bot randomly chooses a rank to ask about
-				rankChoice = ranks[rand.Intn(len(ranks))]
+				rankGuess = ranks[rand.Intn(len(ranks))]
 
 				// Bot randomly guesses the count
-				guess = rand.Intn(4) + 1 // Guess between 1 and 4
+				countGuess = rand.Intn(3) + 1 // Guess between 1 and 3
 			}
 
-			actualCount := countCardsOfRank(selectedPlayer.hand, rankChoice)
-			fmt.Printf("   Player %d: Player %d, do you have any cards of rank %s?\n", currentPlayer.id, selectedPlayer.id, rankChoice)
+			actualCount := countCardsOfRank(selectedPlayer.hand, rankGuess)
+			appendMessageLog(&messageLog, fmt.Sprintf("   Player %d: Player %d, do you have any cards of rank %s?", currentPlayer.id, selectedPlayer.id, rankGuess))
 
 			if actualCount == 0 {
-				fmt.Printf("   Player %d: No\n", selectedPlayer.id)
+				appendMessageLog(&messageLog, fmt.Sprintf("   Player %d: No", selectedPlayer.id))
 				continue
 			}
-			fmt.Printf("   Player %d: Yes\n", selectedPlayer.id)
+			appendMessageLog(&messageLog, fmt.Sprintf("   Player %d: Yes", selectedPlayer.id))
 
-			fmt.Printf("   Player %d: Player %d, do you have %d of these cards\n", currentPlayer.id, selectedPlayer.id, guess)
-			if guess != actualCount {
-				fmt.Printf("   Player %d: No\n", selectedPlayer.id)
+			appendMessageLog(&messageLog, fmt.Sprintf("   Player %d: Player %d, do you have %d of these cards?", currentPlayer.id, selectedPlayer.id, countGuess))
+			if countGuess != actualCount {
+				appendMessageLog(&messageLog, fmt.Sprintf("   Player %d: No", selectedPlayer.id))
 				continue
 			}
 
-			fmt.Printf("   Player %d: Yes\n", selectedPlayer.id)
+			appendMessageLog(&messageLog, fmt.Sprintf("   Player %d: Yes", selectedPlayer.id))
 
-			fmt.Printf("Game Master: Player %d takes %d cards of rank %s from Player %d.\n", currentPlayer.id, actualCount, rankChoice, selectedPlayer.id)
-			moveCards(&selectedPlayer.hand, &currentPlayer.hand, rankChoice)
+			appendMessageLog(&messageLog, fmt.Sprintf("Game Master: Player %d takes %d cards of rank %s from Player %d", currentPlayer.id, actualCount, rankGuess, selectedPlayer.id))
+			moveCards(&selectedPlayer.hand, &currentPlayer.hand, rankGuess)
 
-			if checkForCompleteSet(&currentPlayer.hand, rankChoice) {
+			if checkForCompleteSet(&currentPlayer.hand, rankGuess) {
 				currentPlayer.score++
-				fmt.Printf("Game Master: Player %d has collected all 4 cards of rank %s and scored 1 point!\n", currentPlayer.id, rankChoice)
+				appendMessageLog(&messageLog, fmt.Sprintf("Game Master: Player %d has collected all 4 cards of rank %s and scored 1 point!", currentPlayer.id, rankGuess))
 			}
 		}
 
@@ -121,8 +157,7 @@ func main() {
 	}
 
 	// Display final score
-	fmt.Println("===================================")
-	fmt.Println("Final Scores:")
+	fmt.Println("Game over!\n\nFinal Scores:")
 	fmt.Printf("Player 1: %d\n", p.player[0].score)
 	fmt.Printf("Player 2: %d\n", p.player[1].score)
 	fmt.Printf("Player 3: %d\n", p.player[2].score)
